@@ -1,0 +1,26 @@
+.externalNativeBuild
+release/
+
+### Android template
+# Built application files
+*.apk
+*.ap_
+*.sh
+
+# Gradle files
+.gradle/
+build/
+*/build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+*.iml
+.gradle
+.idea
+/local.properties
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+bintray.sh
