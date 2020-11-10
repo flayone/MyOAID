@@ -41,10 +41,14 @@
 
     <TextView
         android:id="@+id/imsi"
+        android:visibility="gone"
         style="@style/LineInfText" />
 
     <TextView
         android:id="@+id/oaid"
+        style="@style/LineInfText" />
+    <TextView
+        android:id="@+id/aid"
         style="@style/LineInfText" />
 
     <TextView
@@ -53,6 +57,11 @@
 
     <TextView
         android:id="@+id/mac"
+        android:visibility="gone"
+        style="@style/LineInfText" />
+    <TextView
+        android:id="@+id/ua"
+        android:visibility="gone"
         style="@style/LineInfText" />
 
     <RelativeLayout

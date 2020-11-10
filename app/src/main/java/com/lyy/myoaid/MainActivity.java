@@ -15,6 +15,9 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.view.View;
@@ -26,12 +29,21 @@ import android.widget.Toast;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.NetworkInterface;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -43,14 +55,19 @@ public class MainActivity extends AppCompatActivity {
     TextView imeiT;
     TextView imsiT;
     TextView oaidT;
+    TextView aidT;
     TextView ipT;
     TextView macT;
+    TextView uaT;
 
     Button copy;
     TextView refresh;
 
     String infDetail = "";
     Context app;
+    JSONObject jsonObject;
+    LinkedHashMap<String, String> result;
+    String deviceInfResult = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,8 +80,10 @@ public class MainActivity extends AppCompatActivity {
         imeiT = findViewById(R.id.imei);
         imsiT = findViewById(R.id.imsi);
         oaidT = findViewById(R.id.oaid);
+        aidT = findViewById(R.id.aid);
         ipT = findViewById(R.id.ip);
         macT = findViewById(R.id.mac);
+        uaT = findViewById(R.id.ua);
 
         copy = findViewById(R.id.copy);
         refresh = findViewById(R.id.refresh);
@@ -81,7 +100,31 @@ public class MainActivity extends AppCompatActivity {
         copy.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                copyInf(infDetail);
+//                infDetail = jsonObject.toString();
+
+                //                sb.append("\n");
+
+
+                deviceInfResult = osvT.getText() +
+                        "\n" +
+                        makeT.getText() +
+                        "\n" +
+                        modelT.getText() +
+                        "\n" +
+                        imeiT.getText() +
+                        "\n" +
+//                        imsiT.getText() +
+//                        "\n" +
+                        oaidT.getText() +
+                        "\n" +
+                        aidT.getText() +
+                        "\n" +
+                        ipT.getText();
+//                        "\n" +
+//                        macT.getText() +
+//                        "\n" +
+//                        uaT.getText();
+                copyInf(deviceInfResult);
             }
         });
         refresh.setOnClickListener(new View.OnClickListener() {
@@ -105,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void getInf() {
-        JSONObject jsonObject = new JSONObject();
+        jsonObject = new JSONObject();
 
         try {
             String insOaid = OAIDManger.getInstance().getOaId();
@@ -128,12 +171,13 @@ public class MainActivity extends AppCompatActivity {
             jsonObject.put("osv", osv);
             osvT.setText("Android版本：" + osv);
 
-            String ip = getIP();
+            String ip = getOutIP();
             jsonObject.put("ip", ip);
             ipT.setText("IP地址   ：" + ip);
 
-            String ua = getUserAgent(app);
-            jsonObject.put("ua", ua);
+//            String ua = getUserAgent(app);
+//            uaT.setText("UA     ：" + ua);
+//            jsonObject.put("ua", ua);
             jsonObject.put("oaid", oaid);
             String imei = getPhoneIMEI();
             jsonObject.put("imei", imei);
@@ -145,6 +189,10 @@ public class MainActivity extends AppCompatActivity {
             jsonObject.put("mac", mac);
             macT.setText("mac地址:  " + mac);
 
+            String aid = getAndroidId();
+            jsonObject.put("androidid", aid);
+            aidT.setText("Android ID:   " + getAndroidId());
+
             Integer sw = app.getResources()
                     .getDisplayMetrics().widthPixels;
             // 屏幕高度(px)
@@ -152,19 +200,19 @@ public class MainActivity extends AppCompatActivity {
                     .getDisplayMetrics().heightPixels;
             Integer ppi = app.getResources()
                     .getDisplayMetrics().densityDpi;
-            jsonObject.put("sw", sw);
-            jsonObject.put("sh", sh);
-            jsonObject.put("ppi", ppi);
-            String carrier = getCarrier();
-            jsonObject.put("carrier", carrier);
-            Integer network = getNetwork();
-            jsonObject.put("network", network);
+//            jsonObject.put("sw", sw);
+//            jsonObject.put("sh", sh);
+//            jsonObject.put("ppi", ppi);
+//            String carrier = getCarrier();
+//            jsonObject.put("carrier", carrier);
+//            Integer network = getNetwork();
+//            jsonObject.put("network", network);
+
 
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        infDetail = jsonObject.toString();
-        ADLog.d("infDetail == " + infDetail);
+        ADLog.d("jsonObject.toString() == " + jsonObject.toString());
     }
 
 
@@ -251,6 +299,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public String getAndroidId() {
+        try {
+            return Settings.System.getString(app.getContentResolver(), Settings.System.ANDROID_ID);
+        } catch (Throwable e) {
+            return "";
+        }
+    }
 
     private static String getImeiNew(Context context) {
         String imei = "";
@@ -312,6 +367,120 @@ public class MainActivity extends AppCompatActivity {
             return "";
         }
         return "";
+    }
+
+    /**
+     * 可以返回wifi下外网ip的方法,服务端不需要外网ip，所以可以不用
+     *
+     * @return ip
+     */
+    public String getOutIP() {
+        try {
+            String ip = "";
+            ip = ADSetting.getInstance().getIp();
+
+//            ADSetting.getInstance().getIp();
+//            if (!TextUtils.isEmpty(ip)) {
+//                return ip;
+//            }
+
+//            NetworkInfo info = ((ConnectivityManager) app
+//                    .getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo();
+//            if (info != null && info.isConnected()) {
+//                if (info.getType() == ConnectivityManager.TYPE_MOBILE) {//当前使用2G/3G/4G网络
+//                    for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
+//                        NetworkInterface intf = en.nextElement();
+//                        for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
+//                            InetAddress inetAddress = enumIpAddr.nextElement();
+//                            if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
+//                                ip = inetAddress.getHostAddress();
+//                            }
+//                        }
+//                    }
+//                } else if (info.getType() == ConnectivityManager.TYPE_WIFI) {//当前使用无线网络
+//
+//                    WifiManager wifiManager = (WifiManager) app.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+//                    WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+//                    //调用方法将int转换为地址字符串
+//                    ip = intIP2StringIP(wifiInfo.getIpAddress());//得到IPV4地址
+//                }
+            //ip地址获取不到的话，则通过网络请求ip；不为空则保存在单例中
+            if (TextUtils.isEmpty(ip)) {
+                GetNetIp();
+            } else {
+                ADSetting.getInstance().setIp(ip);
+            }
+//            }
+            return ip;
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+
+    /**
+     * 获取外网IP地址
+     *
+     * @return
+     */
+    private void GetNetIp() {
+        try {
+            new Thread() {
+                @Override
+                public void run() {
+                    String line;
+                    URL infoUrl;
+                    InputStream inStream;
+                    try {
+                        infoUrl = new URL("https://pv.sohu.com/cityjson?ie=utf-8");
+                        URLConnection connection = infoUrl.openConnection();
+                        HttpURLConnection httpConnection = (HttpURLConnection) connection;
+                        int responseCode = httpConnection.getResponseCode();
+                        if (responseCode == HttpURLConnection.HTTP_OK) {
+                            inStream = httpConnection.getInputStream();
+                            BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, "utf-8"));
+                            StringBuilder strber = new StringBuilder();
+                            while ((line = reader.readLine()) != null)
+                                strber.append(line).append("\n");
+                            inStream.close();
+                            // 从反馈的结果中提取出IP地址
+                            int start = strber.indexOf("{");
+                            int end = strber.indexOf("}");
+                            String json = strber.substring(start, end + 1);
+                            if (json != null) {
+                                try {
+                                    JSONObject jsonObjectIP = new JSONObject(json);
+                                    final String ip = jsonObjectIP.optString("cip");
+                                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            try {
+                                                jsonObject.put("ip", ip);
+                                            } catch (JSONException e) {
+                                                e.printStackTrace();
+                                            }
+                                            ipT.setText("IP地址   ：" + ip);
+
+                                        }
+                                    });
+
+                                    ADSetting.getInstance().setIp(line);
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+
+                        }
+                    } catch (MalformedURLException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }.start();
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
 
