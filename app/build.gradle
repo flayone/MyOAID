@@ -33,6 +33,9 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
 
-    implementation(name: 'oaid_sdk_1.0.23', ext: 'aar')
+    //my oaid 源代码方式获取oaid，更轻量级
+    implementation "io.github.flayone:oaid-source:1.0.3"
+    //msa sdk 方式获取oaid，体量较重
+//    implementation(name: 'oaid_sdk_1.0.23', ext: 'aar')
 
 }

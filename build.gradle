@@ -2,13 +2,15 @@
 
 buildscript {
     repositories {
+        //maven依赖库
+        maven { url 'https://s01.oss.sonatype.org/content/groups/public' }
+        maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
         google()
-        jcenter()
-        
+
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:3.5.2'
-        
+
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -16,9 +18,11 @@ buildscript {
 
 allprojects {
     repositories {
+        //maven依赖库
+        maven { url 'https://s01.oss.sonatype.org/content/groups/public' }
+        maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
         google()
-        jcenter()
-        
+
     }
 }
 

@@ -1,13 +1,16 @@
 package com.lyy.myoaid;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.Manifest;
 import android.annotation.TargetApi;
-import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -25,6 +28,9 @@ import android.webkit.WebSettings;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.flayone.oaid.MyOAID;
+import com.flayone.oaid.ResultCallBack;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -63,11 +69,10 @@ public class MainActivity extends AppCompatActivity {
     Button copy;
     TextView refresh;
 
-    String infDetail = "";
     Context app;
     JSONObject jsonObject;
-    LinkedHashMap<String, String> result;
     String deviceInfResult = "";
+    List<String> lackedPermission = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,9 +105,6 @@ public class MainActivity extends AppCompatActivity {
         copy.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                infDetail = jsonObject.toString();
-
-                //                sb.append("\n");
 
 
                 deviceInfResult = osvT.getText() +
@@ -113,17 +115,15 @@ public class MainActivity extends AppCompatActivity {
                         "\n" +
                         imeiT.getText() +
                         "\n" +
-//                        imsiT.getText() +
-//                        "\n" +
                         oaidT.getText() +
                         "\n" +
                         aidT.getText() +
                         "\n" +
-                        ipT.getText();
-//                        "\n" +
-//                        macT.getText() +
-//                        "\n" +
-//                        uaT.getText();
+                        ipT.getText() +
+                        "\n" +
+                        macT.getText() +
+                        "\n" +
+                        uaT.getText();
                 copyInf(deviceInfResult);
             }
         });
@@ -151,14 +151,17 @@ public class MainActivity extends AppCompatActivity {
         jsonObject = new JSONObject();
 
         try {
-            String insOaid = OAIDManger.getInstance().getOaId();
-            String savedOaid = OUtil.getSavedString(this, OUtil.SP_OAID);
-            String oaid;
-            if (TextUtils.isEmpty(insOaid)) {
-                oaid = savedOaid;
-            } else {
-                oaid = insOaid;
-            }
+            //必须，初始化获取oaid程序
+            MyOAID.init(this, new ResultCallBack() {
+                @Override
+                public void onResult(String oaid) {
+//                    因为部分平台结果为异步返回，可以选择在ResultCallBack回调中第一时间更新该值
+                    oaidT.setText("OAID ：" + oaid);
+                }
+            });
+
+            //快速获取oaid方式，本地长久缓存方式，不用担心异步问题
+            String oaid = MyOAID.getOAID(this);
             oaidT.setText("OAID ：" + oaid);
 
             String model = Build.MODEL;
@@ -175,9 +178,6 @@ public class MainActivity extends AppCompatActivity {
             jsonObject.put("ip", ip);
             ipT.setText("IP地址   ：" + ip);
 
-//            String ua = getUserAgent(app);
-//            uaT.setText("UA     ：" + ua);
-//            jsonObject.put("ua", ua);
             jsonObject.put("oaid", oaid);
             String imei = getPhoneIMEI();
             jsonObject.put("imei", imei);
@@ -193,22 +193,9 @@ public class MainActivity extends AppCompatActivity {
             jsonObject.put("androidid", aid);
             aidT.setText("Android ID:   " + getAndroidId());
 
-            Integer sw = app.getResources()
-                    .getDisplayMetrics().widthPixels;
-            // 屏幕高度(px)
-            Integer sh = this.getApplicationContext().getResources()
-                    .getDisplayMetrics().heightPixels;
-            Integer ppi = app.getResources()
-                    .getDisplayMetrics().densityDpi;
-//            jsonObject.put("sw", sw);
-//            jsonObject.put("sh", sh);
-//            jsonObject.put("ppi", ppi);
-//            String carrier = getCarrier();
-//            jsonObject.put("carrier", carrier);
-//            Integer network = getNetwork();
-//            jsonObject.put("network", network);
-
-
+            String ua = getUserAgent(app);
+            uaT.setText("UA     ：" + ua);
+            jsonObject.put("ua", ua);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -219,16 +206,9 @@ public class MainActivity extends AppCompatActivity {
     @TargetApi(Build.VERSION_CODES.M)
     void checkAndRequestPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            List<String> lackedPermission = new ArrayList<String>();
-            if (!(this.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED)) {
-                lackedPermission.add(Manifest.permission.READ_PHONE_STATE);
-            }
-//
-//            if (!(this.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)) {
-//                lackedPermission.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-//            }
+            checkLackedPermission();
 
-            // 权限都已经有了，那么直接调用SDK
+            // 权限都已经有了
             if (lackedPermission.size() == 0) {
                 getInf();
             } else {
@@ -240,15 +220,27 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-    private String getCarrier() {
-        try {
-            TelephonyManager telManager = (TelephonyManager) app.getSystemService(Context.TELEPHONY_SERVICE);
-            return telManager.getSimOperator();
-        } catch (Throwable e) {
-            return "";
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        //申请权限结果返回
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            checkLackedPermission();
+            // 权限都已经有了
+            if (lackedPermission.size() == 0) {
+                getInf();
+            }
         }
+    }
 
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private void checkLackedPermission() {
+        lackedPermission = new ArrayList<>();
+        if (!(this.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED)) {
+            lackedPermission.add(Manifest.permission.READ_PHONE_STATE);
+        }
     }
 
     public static String getUserAgent(Context context) {

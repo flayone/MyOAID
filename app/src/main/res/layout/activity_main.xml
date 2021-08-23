@@ -57,11 +57,9 @@
 
     <TextView
         android:id="@+id/mac"
-        android:visibility="gone"
         style="@style/LineInfText" />
     <TextView
         android:id="@+id/ua"
-        android:visibility="gone"
         style="@style/LineInfText" />
 
     <RelativeLayout
