@@ -1,16 +1,10 @@
 package com.lyy.myoaid;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -28,6 +22,10 @@ import android.webkit.WebSettings;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.flayone.oaid.MyOAID;
 import com.flayone.oaid.ResultCallBack;
@@ -49,7 +47,6 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.LinkedHashMap;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -160,9 +157,27 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
+
             //快速获取oaid方式，本地长久缓存方式，不用担心异步问题
-            String oaid = MyOAID.getOAID(this);
-            oaidT.setText("OAID ：" + oaid);
+            MyOAID.getOAID(this, new ResultCallBack() {
+                @Override
+                public void onResult(final String oaid) {
+                    try {
+                        jsonObject.put("oaid", oaid);
+
+//                    因为部分平台结果为异步返回，可以选择在ResultCallBack回调中第一时间更新该值
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                oaidT.setText("OAID ：" + oaid);
+                            }
+                        });
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            });
 
             String model = Build.MODEL;
             modelT.setText("设备型号：" + model);
@@ -178,7 +193,6 @@ public class MainActivity extends AppCompatActivity {
             jsonObject.put("ip", ip);
             ipT.setText("IP地址   ：" + ip);
 
-            jsonObject.put("oaid", oaid);
             String imei = getPhoneIMEI();
             jsonObject.put("imei", imei);
             imeiT.setText("IMEI:     " + imei);
